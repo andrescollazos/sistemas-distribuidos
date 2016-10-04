@@ -15,6 +15,7 @@ class Reloj():
         self.segundo = segundo
         self.milisegundo = milisegundo
 
+    # RETORNAR CADENA: 00:00:00:000
     def retHora(self):
         horaRetornar = 0
         if len(str(self.hora)) == 1:
@@ -43,6 +44,67 @@ class Reloj():
 
     def mostrarHora(self):
         print "{0}:{1}:{2}:{3}".format(self.hora,self.minuto, self.segundo, self.milisegundo)
+
+    # METODO PARA AJUSTAR LA HORA
+    # INPUT: (3, 20, 0, 3).ajustarHora(0,1,59,1001) -> Se quiere aumentar al reloj 1 minuto con 59 segundos y 1001 milisegundos
+    # OUTPUT: (3, 22, 00, 4)
+    def ajustarHora(self, h, m, s, ms):
+        if self.milisegundo + ms < 1000:
+            self.milisegundo = self.milisegundo + ms
+        elif self.milisegundo + ms == 1000:
+            self.milisegundo = 0
+            self.segundo = self.segundo + 1
+        else:
+            if (self.milisegundo + ms) - 1000 >= 1000:
+                self.ajustarHora(0, 0, 1, (self.milisegundo + ms) - 1000)
+            else:
+                self.milisegundo = (self.milisegundo + ms) - 1000
+                self.segundo = self.segundo + 1
+
+        if self.segundo + s < 60:
+            self.segundo = self.segundo + s
+        elif self.segundo + s == 60:
+            self.segundo = 0
+            self.minuto = self.minuto + 1
+        else:
+            if (self.segundo + s) - 60 >= 60:
+                self.ajustarHora(0, 1, (self.segundo + s) - 60, 0)
+            else:
+                self.segundo = (self.segundo + s) - 60
+                self.minuto = self.minuto + 1
+
+        if self.minuto + m < 60:
+            self.minuto = self.minuto + m
+        elif self.minuto + m == 60:
+            self.minuto = 0
+            self.hora = self.hora + 1
+        else:
+            if (self.minuto + m) - 60 >= 60:
+                self.ajustarHora(1, (self.minuto + m) - 60, 0, 0)
+            else:
+                self.minuto = (self.minuto + m) - 60
+                self.hora = self.hora + 1
+
+        if self.hora + h < 24:
+            self.hora = self.hora + h
+        else:
+            self.hora = (self.hora + h) - 24
+
+    def desface(self, reloj2):
+        hora = (self.hora - reloj2.hora)*3600
+        #print "h: ", self.hora, reloj2.hora, (self.hora - reloj2.hora)*3600
+
+        minuto = (self.minuto - reloj2.minuto)*60
+        #print "m: ", self.minuto, reloj2.minuto, (self.minuto - reloj2.minuto)*60
+
+        segundo = self.segundo - reloj2.segundo
+        #print "s: ", self.segundo, reloj2.segundo, self.segundo - reloj2.segundo
+
+        milisegundo = (self.milisegundo - reloj2.milisegundo)*1.0/1000
+        #print "ms: ", self.milisegundo, reloj2.milisegundo, (self.milisegundo - reloj2.milisegundo)*1.0/1000
+
+        #print hora + minuto + segundo + milisegundo
+        return hora + minuto + segundo + milisegundo
 
 
     def tick(self):
