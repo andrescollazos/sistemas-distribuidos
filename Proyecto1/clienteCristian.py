@@ -5,6 +5,8 @@ import time
 import thread
 from claseReloj import Reloj
 
+intervalo = "5" # CADA CUANTOS SEGUNDOS PIDE AL SERVIDOR LA HORA
+
 # CONEXION A SERVIDOR
 s = socket.socket()
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -29,7 +31,7 @@ while continuar:
     #s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
     #s.connect(('localhost', 3000))
     tiempo_init = time.time()
-    s.send("1") # PEDIR LA HORA
+    s.send(intervalo) # CADA CUANTOS SEGUNDOS PIDE LA HORA
     horaRecibida = s.recv(1024)
     tiempo_fin = time.time()
 

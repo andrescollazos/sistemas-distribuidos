@@ -31,12 +31,20 @@ s.listen(10)
 
 def connection(sc, address, reloj):
     data = sc.recv(1024)
+    while True:
+        if data > 0:
+            print "La hora del servidores es: ", reloj.retHora()
+            respuesta = reloj.retHora()
+
+            sc.send(respuesta)
+        time.sleep(int(data))
+'''
     if data == "1":
         print "La hora del servidores es: ", reloj.retHora()
         respuesta = reloj.retHora()
 
         sc.send(respuesta)
-
+'''
 while 1:
     if crearReloj:
         thread.start_new_thread(relojSys.tick,())
