@@ -14,7 +14,7 @@ s.connect(('localhost', 3000)) # ESTABLECER CONEXION CON EL SERVIDOR
 relojSys = Reloj()
 crearReloj = True
 l = time.localtime()
-relojSys.setHora(l.tm_hour, l.tm_min+3, l.tm_sec, 0)
+relojSys.setHora(l.tm_hour, l.tm_min+30, l.tm_sec, 0)
 
 #print "La hora del sistema antes de llamar al servidor: ", relojSys.mostrarHora()
 
@@ -33,30 +33,23 @@ while continuar:
     tiempo_fin = time.time()
 
     if correcto == "correct":
-        print "VOY A MANDAR MI HORA AL SERVIDOR..."
+        print "Hora local del sistema: ", relojSys.retHora()
+        time.sleep(0.050)
         s.send(relojSys.retHora())
         desface = s.recv(1024)
+        desface = desface.split(":")
+        if desface != ['correct']:
+            for i, elem in enumerate(desface):
+                #print "desface iteracion: ", int(elem)*int(desface[4])
+                desface[i] = int(elem)*int(desface[4])
+            #print "Desface respecto al maestro: ",
+            #print desface[0], " horas ", desface[1], " minutos ", desface[2], " segundos ", desface[3], " milisegundos"
 
-    '''
-    print "La hora del sistema despues de llamar al servidor: ", relojSys.mostrarHora()
-    print "La latencia cliente-servidor por la red (seg.): ", int(1000*(tiempo_fin - tiempo_init))
-    print "La hora recibida del servidor: ", horaRecibida
+            relojSys.ajustarHora(desface[0], desface[1], desface[2], desface[3])
 
-    #### MODIFICAR HORA DEL CLIENTE
-    #newHour = int(horaRecibida[0]+horaRecibida[1])
-    #newMin = int(horaRecibida[3]+horaRecibida[4])
-    #newSec = int(horaRecibida[6]+horaRecibida[7])
-    #newMil = int(horaRecibida[9]+horaRecibida[10]+horaRecibida[11])
-    #relojSys.setHora(newHour, newMin, newSec, newMil)
-    #print "\n La nueva hora del cliente: ", relojSys.mostrarHora()
+            print "La nueva hora del sistema es: ", relojSys.retHora()
+            correcto = "incorrect"
+        #break
+    time.sleep(5)
 
-    ''''''
-    resp= raw_input("Desea ajustar nuevamente la hora? (y/n): ")
-    if resp == 'Y' or resp == 'y':
-        continuar = True
-    else:
-        continuar = False
-    ''''''
 s.close()
-
-'''
