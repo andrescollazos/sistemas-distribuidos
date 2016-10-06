@@ -1,104 +1,89 @@
-from socket import AF_INET, SOCK_DGRAM
-import time
+import sys
 import socket
+#import struct, time
+import time
 import thread
+import threading
 
-global procesos
-procesos = []
+TCP_IP = 'localhost'
+TCP_PORT = int(sys.argv[1])#11000
+BUFFER_SIZE = 2048
 
-class Proceso():
-    global procesos
+procesos =[
+			['localhost', 31000, 'active', False],
+			['localhost', 32000, 'active', False],
+			['localhost', 33000, 'active', False]
+			]
+'''
+			['localhost', 14000, 'active', False],
+			['localhost', 15000, 'active', False],
+			['localhost', 16000, 'active', False],
+			['localhost', 17000, 'active', False],
+			['localhost', 18000, 'inactive', True],
+		  ]
+'''
+# ELIMINARSE DE LA LISTA DE PROCESOS:
+for i in procesos:
+	if TCP_PORT in i:
+		procesos.remove(i)
+#SocketServer.ThreadingTCPServer.allow_reuse_address = True
+#s = socket.socket	(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+s.bind((TCP_IP, TCP_PORT))
+s.listen(10)
 
-    def __init__(self, nom, prioridad, status, address, coordinador=False):
-        self.nom = nom
-        self.prioridad = prioridad
-        self.status = status
-        self.coordinador = coordinador
-        self.address = address
-        #self.procesos = []
+# MENSAJE TIPO E:
+def escogerCoordinador(IP,Puerto):
+		#global Hour
+		#print "IP: ", IP, " Puerto: ", Puerto
+		#time.sleep(5)
+		s = socket.socket()
+		s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+		s.connect((IP, Puerto))
+		print "Enviare mensaje \"E\" a : ", IP, ":", Puerto
+		s.send("E")
+		time.sleep(1)
+		ok = s.recv(BUFFER_SIZE)
+		time.sleep(1)
+		print ok
+		#Hour = Hour+int(HorRec)
 
-    def mostrarProceso(self):
-        return self.nom + " prioridad: "+str(self.prioridad)+" s:"+self.status+ " - "+str(self.address)
+		s.close()
 
-    def enviarMsg(proceso, msg):
-        try:
-            s = socket.socket()
-            s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-            s.connect(proceso.address) #('localhost', 3000))
-            #ns = socket.socket(socket.AF_UNIX,socket.SOCK_STREAM)
-            #ns.connect(proceso.address)
-            s.send(msg)
-            s.close()
-            return 1
-        except:
-            return 0
+def connection(sc, addr):
+	#global Segundos, Minutos, Hora
 
-    def escucharMsg(self):
-        #self.nom = "proces k"
-        s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
-        s.bind(self.address)#('', 3000))
-        s.listen(1)
-        while 1:
-            print type(self.address), "-> ", self.address
+	Pregunta=sc.recv(BUFFER_SIZE)
+	if Pregunta == "E":
+		print "Enviare respuesta \"OK\" a ", addr[0], ":", addr[1]
+		#HoraEnviada = (Hora*3600)+(Minutos*60)+Segundos
+		sc.send("OK")
 
-            conn, addr = s.accept()
-            print "recibida conexion de la IP: " + str(addr[0]) + " puerto: " + str(addr[1])
-            thread.start_new_thread(self.connection, (sc, addr))
 
-    def connection(self, sc, addr):
-        # Solo existen tres tipos de mensajes:
-        # e
-        # ok
-        # coordinador
-        data = sc.recv(1024)
+def Cliente():
+	while True:
+		sc, addr = s.accept()
+		thread.start_new_thread(connection,(sc,addr))
 
-        if data == 'e':
-            print "Recibi un mensaje de eleccion"
-            respuesta = '1'
-            sc.rend(respuesta)
-        elif data == 'ok':
-            print "Recibi un mensaje de OK"
-            respuesta = '1'
-            sc.rend(respuesta)
-        elif data == 'coordinador':
-            print "Recibi un mensaje de coordinador"
-            respuesta = '1'
-            sc.rend(respuesta)
+threads = list()
 
-def main():
-    global procesos
-    crearProceso = True
-    while 1:
-        if crearProceso:
-            cantProcesos = input("Ingrese la cantidad de procesos: ")
-            for i in range(cantProcesos):
-                nom = "proceso "+str(i+1)
-                prioridad = i + 1
-                status = "active"
-                direccion = ('localhost', 7000+10*i)
+t = threading.Thread(target=Cliente)
+threads.append(t)
+t.start()
 
-                procesoi = Proceso(nom, prioridad, status, direccion)
-                procesos.append(procesoi)
-                thread.start_new_thread(procesoi.escucharMsg, ())
+while True:
+	time.sleep(10)
 
-            crearProceso = False
+	if TCP_PORT == 31000:
+		for i in range(len(procesos)):
+			thread.start_new_thread(escogerCoordinador,(procesos[i][0],procesos[i][1]))
 
-        # INICIAR PROCESO DE SELECCION
-        for i in procesos:
-            print i.mostrarProceso()
-        time.sleep(4)
+	#Hour = Hour + ( ( Hora * 3600 ) + ( Minutos * 60 ) + Segundos )
+	#Hour = Hour / ( len(Clientes) + 1 )
+	#Hora = Hour/3600
+	#Hour = Hour - (Hora*3600)
+	#Minutos = Hour/60
+	#Hour = 0
 
-                #if i == cantProcesos:
-                #    procesoi = Proceso(nom, prioridad, status, direccion, True)
-                #    procesos.append(procesoi)
-                #    thread.start_new_thread(procesoi.escucharMsg, ())#connection,(sc,addr, relojSys))
-                #else:
-                #    procesoi = Proceso(nom, prioridad, status, direccion)
-                #    procesos.append(procesoi)
-                #    thread.start_new_thread(procesoi.escucharMsg, ())
-
-        #for i in procesos:
-        #    print i.mostrarProceso()
-
-if __name__ == '__main__':
-    main()
+#if __name__ == '__main__':
+#	main()
