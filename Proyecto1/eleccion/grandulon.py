@@ -13,16 +13,16 @@ contadorProcesos = 0
 #procesosMasGrandes = 0
 # Proceso : [Direccion, puerto, prioridad, estado, esCoordinador?, esElegibleComoCordinador?]
 procesos =[
-			['localhost', 6111, '2', 'active', False, 'ne'],
-			['localhost', 6222, '4', 'active', False, 'ne'],
-			['localhost', 6333, '6', 'inactive', True, 'ne']
+			['localhost', 11002, '1', 'active', False, 'ne'],
+			['localhost', 12002, '2', 'active', False, 'ne'],
+			['localhost', 13002, '3', 'active', False, 'ne'],
+			['localhost', 14002, '4', 'active', False, 'ne']
 			]
 '''
-			['localhost', 14000, '1', 'active', False, 'ne'],
-			['localhost', 15000, '3', 'active', False, 'ne'],
-			['localhost', 16000, '5', 'active', False, 'ne'],
-			['localhost', 17000, '7', 'active', False, 'ne'],
-			['localhost', 18000, '8', 'inactive', True, 'ne'],
+			['localhost', 15001, '5', 'active', False, 'ne'],
+			['localhost', 16001, '6', 'active', False, 'ne'],
+			['localhost', 17001, '7', 'active', False, 'ne'],
+			['localhost', 18001, '8', 'inactive', True, 'ne'],
 		  ]
 '''
 # ELIMINARSE DE LA LISTA DE PROCESOS:
@@ -83,6 +83,29 @@ def peticionCoordinador(IP, Puerto):
 	else:
 		return "No Cambio"
 
+def cambCoordinador(TCP_PORT):
+	global procesos
+	for i in procesos:
+		if True in i:
+			i[4] = False
+
+	for i in procesos:
+		if TCP_PORT in i:
+			i[4] = True
+
+def nuevoCoordinador(IP, Puerto):
+	s = socket.socket()
+	s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+	s.connect((IP, Puerto))
+	print "Informare que soy el nuevo coordinador a : ", IP, ":", Puerto
+	s.send('Coordinador:'+str(TCP_PORT))
+	time.sleep(1)
+	ack = s.recv(BUFFER_SIZE)
+	time.sleep(1)
+	if ack == 'confirmado':
+		print "Confirmado!"
+		cambCoordinador(TCP_PORT)
+
 def connection(sc, addr):
 	#global Segundos, Minutos, Hora
 	global cambiarCoordinador
@@ -100,6 +123,12 @@ def connection(sc, addr):
 	elif Pregunta == "1":
 		print "Enviare mi estado a ", addr[0], ":", addr[1]
 		sc.send(estado)
+
+	elif Pregunta[:11] == 'Coordinador':
+		print "El nuevo coordinador es: ", addr[0], ":", addr[1]
+		cambiarCoordinador = False
+		cambCoordinador(Pregunta[11:])
+		sc.send('Confirmado')
 
 
 def Cliente():
@@ -120,7 +149,7 @@ value = False
 while True:
 	time.sleep(10)
 
-	if TCP_PORT == 6111 and empezar: # Proceso 2
+	if TCP_PORT == 12002 and empezar: # Proceso 2
 		for i in procesos:
 			if True in i: # Buscar coordinador
 				cambiar = peticionCoordinador(i[0], i[1])
