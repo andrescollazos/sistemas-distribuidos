@@ -23,7 +23,6 @@ class Reloj():
             self.minuto = 0
             self.segundo = 0
             self.milisegundo = 0
-            self.inactivo = "activo"
         else:
             # Inicializar un reloj a partir de una cadena:
             #'12:00:30:670'
@@ -31,7 +30,8 @@ class Reloj():
             self.minuto = int(cHora[3] + cHora[4])
             self.segundo = int(cHora[6] + cHora[7])
             self.milisegundo = int(cHora[9] + cHora[10] + cHora[11])
-            self.inactivo = "activo"
+        self.inactivo = "activo"
+        self.peticion_solucionada = False
 
     def setHora(self, hora, minuto, segundo, milisegundo=0):
         self.hora = hora
