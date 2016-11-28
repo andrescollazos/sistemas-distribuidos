@@ -40,23 +40,20 @@ class Memoria():
     # sus paginas, si estas paginas no son originales de él, buscamos el propietario
     # y agregamos una dirección a la copia de la pagina
     def registrarPaginas(self, nodo, paginas):
-        print "RECORRER LISTA DE PAGINAS DEL NODO", nodo
+        for i, elem in enumerate (paginas):
+            paginas[i] = [elem]
+
         for i in paginas:
-            if not (i[0] == nodo):
+            if not (i[0][0] == nodo):
                 # Comprar que el nodo con el que se compara si esta creado:
                 try:
-                    print "Soy el nodo: ", i[0]
-                    for j, elem in  enumerate (self.mapa[i[0]]):
-                        print i, "==", elem
-                        if i == elem:
-                            try:
-                                self.mapa[i[0]][j] = elem + "," + nodo
-                                print "todo salio bien"
-                            except:
-                                print "aqui es el error mono"
+                    for j, elem in  enumerate (self.mapa[i[0][0]]):
+                        if i[0] == elem[0]:
+                            self.mapa[i[0][0]][j].append(nodo)
                 except KeyError:
                     pass
-                print "Este no es orginal tuyo: ", i
+
+        #print "MOSTRAR PAGINAS: ", paginas, type(paginas)
         self.mapa[nodo] = paginas
 
     def mostrarMapa(self):
@@ -81,9 +78,6 @@ def connection(sc, address, reloj, memoria):
             #print "La hora del servidores es: ", reloj.retHora()
             data = data.split(";")
 
-            #for i in data[1:]:
-            #    nodo = i[0]
-            #    memoria.mapa.update({nodo:[]})
             memoria.mapa.update({data[0]:[]})
             memoria.registrarPaginas(data[0], data[1:])
             respuesta = reloj.retHora()
@@ -103,7 +97,6 @@ while 1:
     sc, addr = s.accept()
     print "recibida conexion de la IP: " + str(addr[0]) + " puerto: " + str(addr[1])
     thread.start_new_thread(connection,(sc,addr, relojSys, memoria))
-    print "DESPUES DE RECIBIR CONEXION: ", memoria
 
 sc.close()
 s.close()
