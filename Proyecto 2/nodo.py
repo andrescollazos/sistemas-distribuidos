@@ -1,4 +1,5 @@
 #!/usr/bin/env python
+# coding=utf-8
 
 import socket
 import time
@@ -14,6 +15,8 @@ class Paginas():
     def __init__(self, init = []):
         self.paginas = []      # Se cuenta con una lista de paginas -> [101, 102, 103, ...]
         self.directorio = ""   # Se tiene un directorio de trabajo
+        self.estadoEscribir = 0
+        self.estadoLeer = 0
 
         if len(init) > 0:     # Se puede inicializar el objeto al crearlo
             self.directorio = init[0]
@@ -62,13 +65,49 @@ class Paginas():
     # Este metodo simulara la actualización de las paginas, cada cierto tiempo,
     # Se realizará una modificación con un valor aleatoreo a una pagina
     # seleccionada aleatoreamente
-    def actualizarPag(self, tiempo):
+    def actualizarPag(self, socket, tiempo = 3):
+        tiempo_inicial = tiempo
         while True:
             time.sleep(int(tiempo))
-            valor = random.randrange(0, 10)
-            pos = [random.randrange(0, 10), random.randrange(0, 10)]
+            socket.send("E")
+            autorizacion = socket.recv(1024)
+            print "Recibí respuesta: ", autorizacion
+            if autorizacion == '1':
+                tiempo = tiempo_inicial
+                #self.estadoEscribir = 1 # EL NODO VA A ESCRIBIR EN UNA PAGINA
+                valor = random.randrange(0, 10)
+                pos = [random.randrange(0, 10), random.randrange(0, 10)]
+                pagina = self.paginas[random.randrange(0, len(self.paginas))]
+                print "Escribiendo el valor {3} en la pagina {0} en la posición ({1}, {2})".format(pagina, pos[0], pos[1], valor)
+                self.escribirPag(pagina, pos, valor)
+                mensaje = "E-" + pagina + "-" + str(pos[0]) + "," + str(pos[1]) + "-" + str(valor)
+                socket.send(mensaje)
+            else:
+                tiempo = 0.05
 
-            ## CONTINUAR
+    def leerPag(self, socket, tiempo = 10):
+        tiempo_inicial = tiempo
+        while True:
+            time.sleep(int(tiempo))
+            socket.send("L")
+            autorizacion = socket.recv(1024)
+            print "Recibí respuesta: ", autorizacion
+
+            if autorizacion == '1':
+                tiempo = tiempo_inicial
+                #self.estadoLeer = 1
+                pos = [random.randrange(0, 10), random.randrange(0, 10)]
+                pagina = self.paginas[random.randrange(0, len(self.paginas))]
+                arch = open(self.directorio+"/"+pagina, "r+")
+                arch.seek(2*(pos[0]*10 + pos[1]))
+                valor = arch.read(1)
+                print "Leyendo el valor de en la pagina {0} en la posición ({1}, {2}): {3}".format(pagina, pos[0], pos[1], valor)
+                #self.estadoLeer = 0
+                mensaje = "L-" + pagina + "-" + str(pos[0]) + "," + str(pos[1]) + "-" + str(valor)
+                socket.send(mensaje)
+            else:
+                tiempo = 0.05
+
 # ------------------------------------------------------------------------------
 #                     AJUSTES DE SINCRONIZACIÓN DE RELOJ
 # ------------------------------------------------------------------------------
@@ -79,30 +118,39 @@ intervalo = "5" # CADA CUANTOS SEGUNDOS PIDE AL SERVIDOR LA HORA
 s = socket.socket()
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.connect(('localhost', int(sys.argv[1])))
+s.send(sys.argv[2])
 
 # AJUSTAR RELOJ LOCAL DEL SISTEMA
 relojSys = Reloj()
-crearReloj = True
+iniciarProceso = True
 l = time.localtime()
 relojSys.setHora(l.tm_hour, l.tm_min, l.tm_sec)
 
-print "La hora del sistema antes de llamar al servidor: ", relojSys.mostrarHora()
+#print "La hora del sistema antes de llamar al servidor: ", relojSys.mostrarHora()
 
 continuar = True
+
+paginas_nodo = Paginas(['1', '100'])
+
 while continuar:
-    if crearReloj:
-        thread.start_new_thread(relojSys.tick,())
-        crearReloj = False
-    print "-------------------------------------------------------------"
+    if iniciarProceso:
+        #thread.start_new_thread(relojSys.tick,())
+        thread.start_new_thread(paginas_nodo.actualizarPag,(s, 5))
+        thread.start_new_thread(paginas_nodo.leerPag,(s, 17))
+        iniciarProceso = False
+    #print "-------------------------------------------------------------"
     #print "La hora del sistema antes de llamar al servidor: ", relojSys.mostrarHora()
 
     #s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #s.connect(('localhost', 3000))
-    tiempo_init = time.time()
-    time.sleep(1)
-    s.send(sys.argv[2]) # CADA CUANTOS SEGUNDOS PIDE LA HORA
-    horaRecibida = s.recv(1024)
-    tiempo_fin = time.time()
+    #s.connect(('localhost', sys.argv[1]))
+    #if paginas_nodo.estadoEscribir:
+    #    mensaje =
+    #tiempo_init = time.time()
+
+    #time.sleep(1)
+    #s.send(sys.argv[2]) # CADA CUANTOS SEGUNDOS PIDE LA HORA
+    #horaRecibida = s.recv(1024)
+    #tiempo_fin = time.time()
 
     #print "La hora del sistema despues de llamar al servidor: ", relojSys.mostrarHora()
     #print "La latencia cliente-servidor por la red (seg.): ", int(1000*(tiempo_fin - tiempo_init))
@@ -114,13 +162,13 @@ while continuar:
     #newSec = int(horaRecibida[6]+horaRecibida[7])
     #newMil = int(horaRecibida[9]+horaRecibida[10]+horaRecibida[11])
     #relojSys.setHora(newHour, newMin, newSec, newMil)
-    print horaRecibida
+    #print horaRecibida
     #print "\n La nueva hora del cliente: ", relojSys.mostrarHora()
 
 
-    resp= raw_input("Desea ajustar nuevamente la hora? (y/n): ")
+    resp = 'y' #raw_input("Desea ajustar nuevamente la hora? (y/n): ")
     if resp == 'Y' or resp == 'y':
         continuar = True
     else:
         continuar = False
-s.close()
+#s.close()
