@@ -4,33 +4,19 @@
 from socket import AF_INET, SOCK_DGRAM
 import sys
 import socket
-import struct, time
 import thread
-from claseReloj import Reloj
+import time
 
-# HORA DESDE SERVIDOR NTP - ACTUANDO COMO CLIENTE
-#client = socket.socket(AF_INET, SOCK_DGRAM)
-#tiempo_init = time.time()
-#client.sendto('\x1b' + 47 * '\0', ("pool.ntp.org", 123))
-#msg, address = client.recvfrom(1024)
-#tiempo_fin = time.time()
-
-#t = struct.unpack("!12I", msg)[10] # CONVERTIR A HORA
-#t = int(t - 2208988800L)
-#horaI = time.ctime(t).replace(" ", " ")
-#print "Hora recibida desde el servidor NTP: ", horaI
-#print "Latencia (ms): ", int(1000*(tiempo_fin - tiempo_init))
-
-# AJUSTAR RELOJ LOCAL DEL SERVER
-#relojSys = Reloj()
-crearReloj = True
-#relojSys.setHora(int(horaI[11]+horaI[12]), int(horaI[14]+horaI[15]), int(horaI[17]+horaI[18]), int(1000*(tiempo_fin - tiempo_init)))
+iniciarProceso = True
 
 # MATRIZ DE INFORMACIÓN DE LAS PAGINAS
 class Memoria():
     # CREAMOS UN CLASE MEMORIA QUE NOS PERMITE TENER EL MAPEO DE LAS LISTAS
     def __init__(self):
         self.mapa = {}
+        self.puertos = {}
+        self.usados = []
+        self.contador = 5000
 
     # Metodo para imprimir el mapeo
     def __str__(self):
@@ -53,11 +39,11 @@ class Memoria():
                 except KeyError:
                     pass
 
-        #print "MOSTRAR PAGINAS: ", paginas, type(paginas)
         self.mapa[nodo] = paginas
 
     def mostrarMapa(self):
         while 1:
+            print "DATOS DE INFORMACIÓN SOBRE EL ESTADO DE LA MEMORIA: "
             print self
             time.sleep(3)
 
@@ -76,27 +62,65 @@ def connection(sc, address, memoria):
         data = sc.recv(1024)
         print "Data recibida: ", data
         if data > 0:
-            #print "Recibí: ", data
-            #print "La hora del servidores es: ", reloj.retHora()
-            if not(len(data) == 1):
-                if data[0] != 'E' and data[0] != 'L':
-                    dataRec = data.split(";")
-                    memoria.mapa.update({dataRec[0]:[]})
-                    memoria.registrarPaginas(dataRec[0], dataRec[1:])
-                    #respuesta = reloj.retHora()
-                    sc.send("")
-                else:
-                    dataRec = data.split("-")
-                    print dataRec
+            if data[0] != 'E' and data[0] != 'L':
+                dataRec = data.split(";")
+                memoria.mapa.update({dataRec[0]:[]})
+                memoria.registrarPaginas(dataRec[0], dataRec[1:])
+                #respuesta = reloj.retHora()
+                sc.send(str(memoria.contador))
+                memoria.puertos.update({dataRec[0]:memoria.contador})
+                memoria.contador = memoria.contador + 10
             else:
-                sc.send('1')
+                dataRec = data.split("-")
+                print dataRec
+                if len(dataRec) == 4:
+                    if dataRec[0] == 'E':
+                        print "---------------------"
+                        print "Pagina modificada: ", dataRec[1]
+                        try:
+                            memoria.usados.remove(dataRec[1])
+                            #print "Los siguientes nodos deben actualizar sus paginas: "
 
+                            # Vector que contiene los nodos con una copia de la pagina:
+                            actualizarse = [dataRec[1][0]] # Propietario
+
+                            # Buscar los nodos que contienen una copia de la pagina
+                            for i in memoria.mapa[dataRec[1][0]]:
+                                if i[0] == dataRec[1]:
+                                    copias = i[1:] # Crear un vector para las copias
+
+                            for i in copias:
+                                actualizarse.append(i) # Agregar los elementos del vector
+                                                       # De las copias al vector de actualización
+                            #print actualizarse
+                            for i in actualizarse:
+                                to = memoria.puertos[i]
+                                actualizar = socket.socket()
+                                actualizar.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
+                                actualizar.connect(('localhost', to))
+
+                                mensaje = "A-"+ dataRec[1] + "-" + dataRec[2] + "-" + dataRec[3]
+                                actualizar.send(mensaje)
+                                actualizar.close()
+                        except:
+                            pass
+                    elif dataRec[0] == 'L':
+                        try:
+                            memoria.usados.remove(dataRec[1])
+                        except:
+                            pass
+                elif len(dataRec) == 2:
+                    # AGREGAR PAGINAS USADAS:
+                    if not(dataRec[1] in memoria.usados):
+                        memoria.usados.append(dataRec[1])
+                        sc.send('1')
+                    else:
+                        sc.send('0')
 
 while 1:
-    if crearReloj:
-        #thread.start_new_thread(relojSys.tick,())
+    if iniciarProceso:
         thread.start_new_thread(memoria.mostrarMapa, ())
-        crearReloj = False
+        iniciarProceso = False
     print "A la espera de las conexiones... "
     sc, addr = s.accept()
     print "recibida conexion de la IP: " + str(addr[0]) + " puerto: " + str(addr[1])

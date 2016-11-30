@@ -4,7 +4,6 @@
 import socket
 import time
 import thread
-from claseReloj import Reloj
 import sys
 import random
 
@@ -20,7 +19,7 @@ class Paginas():
 
         if len(init) > 0:     # Se puede inicializar el objeto al crearlo
             self.directorio = init[0]
-            self.paginas = init[1:]
+            self.paginas = init[1]
 
     # Metodo para imprimir el objeto al ser llamado por la funcion print -> print MiPagina
     def __str__(self):
@@ -68,36 +67,37 @@ class Paginas():
     def actualizarPag(self, socket, tiempo = 3):
         tiempo_inicial = tiempo
         while True:
+            valor = random.randrange(0, 10)
+            pos = [random.randrange(0, 10), random.randrange(0, 10)]
+            pagina = self.paginas[random.randrange(0, len(self.paginas))]
+
             time.sleep(int(tiempo))
-            socket.send("E")
+            socket.send("E-"+pagina)
             autorizacion = socket.recv(1024)
-            print "Recibí respuesta: ", autorizacion
             if autorizacion == '1':
                 tiempo = tiempo_inicial
                 #self.estadoEscribir = 1 # EL NODO VA A ESCRIBIR EN UNA PAGINA
-                valor = random.randrange(0, 10)
-                pos = [random.randrange(0, 10), random.randrange(0, 10)]
-                pagina = self.paginas[random.randrange(0, len(self.paginas))]
                 print "Escribiendo el valor {3} en la pagina {0} en la posición ({1}, {2})".format(pagina, pos[0], pos[1], valor)
                 self.escribirPag(pagina, pos, valor)
                 mensaje = "E-" + pagina + "-" + str(pos[0]) + "," + str(pos[1]) + "-" + str(valor)
                 socket.send(mensaje)
             else:
+                print "Respuesta: No puedes escribir sobre la pagina!¡Esta ocupada!"
                 tiempo = 0.05
 
     def leerPag(self, socket, tiempo = 10):
         tiempo_inicial = tiempo
         while True:
+            pagina = self.paginas[random.randrange(0, len(self.paginas))]
+
             time.sleep(int(tiempo))
-            socket.send("L")
+            socket.send("L-"+pagina)
             autorizacion = socket.recv(1024)
-            print "Recibí respuesta: ", autorizacion
 
             if autorizacion == '1':
                 tiempo = tiempo_inicial
                 #self.estadoLeer = 1
                 pos = [random.randrange(0, 10), random.randrange(0, 10)]
-                pagina = self.paginas[random.randrange(0, len(self.paginas))]
                 arch = open(self.directorio+"/"+pagina, "r+")
                 arch.seek(2*(pos[0]*10 + pos[1]))
                 valor = arch.read(1)
@@ -106,69 +106,49 @@ class Paginas():
                 mensaje = "L-" + pagina + "-" + str(pos[0]) + "," + str(pos[1]) + "-" + str(valor)
                 socket.send(mensaje)
             else:
+                print "Respuesta: No puedes leer sobre la pagina!¡Esta ocupada!"
                 tiempo = 0.05
 
+    def recibirActualizacion(self, sc, addr):
+        data = sc.recv(1024)
+        if data > 0:
+            data = data.split("-")
+            pag = data[1]
+            pos = data[2].split(",")
+            value = data[3]
+            self.escribirPag(pag, [int(pos[0]), int(pos[1])], value)
 # ------------------------------------------------------------------------------
-#                     AJUSTES DE SINCRONIZACIÓN DE RELOJ
+#                     AJUSTES INICIALES DEL NODO
 # ------------------------------------------------------------------------------
-
-intervalo = "5" # CADA CUANTOS SEGUNDOS PIDE AL SERVIDOR LA HORA
 
 # CONEXION A SERVIDOR
 s = socket.socket()
 s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
 s.connect(('localhost', int(sys.argv[1])))
 s.send(sys.argv[2])
+puerto_escuchar = int(s.recv(1024))
 
-# AJUSTAR RELOJ LOCAL DEL SISTEMA
-relojSys = Reloj()
 iniciarProceso = True
-l = time.localtime()
-relojSys.setHora(l.tm_hour, l.tm_min, l.tm_sec)
-
-#print "La hora del sistema antes de llamar al servidor: ", relojSys.mostrarHora()
-
 continuar = True
 
-paginas_nodo = Paginas(['1', '100'])
+# RECIBIR DATOS INICIAL COMO ARGUMENTOS DEL SISTEMA
+datos = sys.argv[2]
+datos = datos.split(";")
+directorio = datos[0]
+paginas = datos[1:]
+paginas_nodo = Paginas([directorio, paginas])
+
+# TENER UN PUERTO ESPECIAL PARA ESCUCHAR RESPUESTAS:
+recibir = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+recibir.bind(('', puerto_escuchar))
+recibir.listen(10)
 
 while continuar:
     if iniciarProceso:
-        #thread.start_new_thread(relojSys.tick,())
         thread.start_new_thread(paginas_nodo.actualizarPag,(s, 5))
         thread.start_new_thread(paginas_nodo.leerPag,(s, 17))
         iniciarProceso = False
-    #print "-------------------------------------------------------------"
-    #print "La hora del sistema antes de llamar al servidor: ", relojSys.mostrarHora()
 
-    #s.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
-    #s.connect(('localhost', sys.argv[1]))
-    #if paginas_nodo.estadoEscribir:
-    #    mensaje =
-    #tiempo_init = time.time()
-
-    #time.sleep(1)
-    #s.send(sys.argv[2]) # CADA CUANTOS SEGUNDOS PIDE LA HORA
-    #horaRecibida = s.recv(1024)
-    #tiempo_fin = time.time()
-
-    #print "La hora del sistema despues de llamar al servidor: ", relojSys.mostrarHora()
-    #print "La latencia cliente-servidor por la red (seg.): ", int(1000*(tiempo_fin - tiempo_init))
-    #print "La hora recibida del servidor: ", horaRecibida
-
-    #### MODIFICAR HORA DEL CLIENTE
-    #newHour = int(horaRecibida[0]+horaRecibida[1])
-    #newMin = int(horaRecibida[3]+horaRecibida[4])
-    #newSec = int(horaRecibida[6]+horaRecibida[7])
-    #newMil = int(horaRecibida[9]+horaRecibida[10]+horaRecibida[11])
-    #relojSys.setHora(newHour, newMin, newSec, newMil)
-    #print horaRecibida
-    #print "\n La nueva hora del cliente: ", relojSys.mostrarHora()
-
-
-    resp = 'y' #raw_input("Desea ajustar nuevamente la hora? (y/n): ")
-    if resp == 'Y' or resp == 'y':
-        continuar = True
-    else:
-        continuar = False
-#s.close()
+    sc, addr = recibir.accept()
+    thread.start_new_thread(paginas_nodo.recibirActualizacion,(sc, addr))
+s.close()
